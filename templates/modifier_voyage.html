@@ -25,7 +25,38 @@
                         <label for="nb_participants_attendu" class="form-label">Nombre de participants attendus</label>
                         <input type="number" class="form-control" id="nb_participants_attendu" name="nb_participants_attendu" value="{{ voyage.nb_participants_attendu }}" required>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Enregistrer les modifications</button>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-save-fill"></i> Enregistrer les modifications</button>
+                        <a href="{{ url_for('voyage_details', voyage_id=voyage.id) }}" class="btn btn-secondary"><i class="bi bi-x-circle"></i> Annuler</a>
+                    </div>
+                </form>
+                <hr>
+                <div class="d-grid">
+                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
+                        <i class="bi bi-trash-fill"></i> Supprimer le voyage
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmation de suppression -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmDeleteModalLabel">Confirmation de suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous absolument certain de vouloir supprimer le voyage <strong>{{ voyage.destination }}</strong> ?</p>
+                <p class="text-danger"><strong>Attention :</strong> Cette action est irréversible. Elle supprimera également tous les élèves inscrits et tous les paiements associés à ce voyage.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form action="{{ url_for('supprimer_voyage', voyage_id=voyage.id) }}" method="post">
+                    <button type="submit" class="btn btn-danger">Oui, supprimer définitivement</button>
                 </form>
             </div>
         </div>

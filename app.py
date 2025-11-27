@@ -184,6 +184,18 @@ def modifier_voyage(voyage_id):
 
     return render_template('modifier_voyage.html', voyage=voyage)
 
+@app.route('/voyage/<int:voyage_id>/supprimer', methods=['POST'])
+def supprimer_voyage(voyage_id):
+    """Supprime un voyage et toutes les données associées (élèves, paiements)."""
+    # get_voyage va lever une 404 si le voyage n'existe pas, ce qui est une bonne sécurité.
+    get_voyage(voyage_id)
+    
+    db = get_db()
+    db.execute('DELETE FROM voyages WHERE id = ?', (voyage_id,))
+    db.commit()
+    
+    # Après la suppression, on redirige vers la page d'accueil.
+    return redirect(url_for('index'))
 
 # -------------------------------------------
 #  Gestion des élèves
