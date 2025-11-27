@@ -1,0 +1,503 @@
+{
+  "name": "Absences-Saisie-Decision-Notion-Drive-Gmail",
+  "nodes": [
+    {
+      "id": "form_trigger",
+      "name": "Form - Saisie d'absence",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 1,
+      "position": [-1200, -80],
+      "parameters": {
+        "path": "absence-demande",
+        "submitButtonLabel": "Envoyer",
+        "options": {
+          "responseMode": "lastNode",
+          "allowFileUploads": true
+        },
+        "formFields": [
+          { "fieldLabel": "Agent", "fieldType": "select", "required": true, "options": ["A REMPLIR DANS LE NODE"], "fieldKey": "agent" },
+          { "fieldLabel": "Email agent", "fieldType": "text", "required": true, "fieldKey": "agent_email" },
+          { "fieldLabel": "Debut", "fieldType": "datetime", "required": true, "fieldKey": "debut" },
+          { "fieldLabel": "Fin", "fieldType": "datetime", "required": true, "fieldKey": "fin" },
+          { "fieldLabel": "Motif", "fieldType": "select", "required": true, "options": ["Rdv médical","Famille","Convenance personnelle","Formation","Autres"], "fieldKey": "motif" },
+          { "fieldLabel": "Remarques", "fieldType": "textarea", "required": false, "fieldKey": "remarques" },
+          { "fieldLabel": "Justificatifs", "fieldType": "file", "required": false, "multiple": true, "fieldKey": "justifs" },
+          { "fieldLabel": "Rattrapage", "fieldType": "datetime", "required": false, "fieldKey": "rattrapage" }
+        ]
+      }
+    },
+    {
+      "id": "if_domain",
+      "name": "If - Domaine autorisé",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-980, -80],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.agent_email}}",
+              "operation": "regex",
+              "value2": "@(ac-amiens\\.fr|aisne\\.fr)$"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "respond_forbidden",
+      "name": "Respond - Domaine refusé",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [-980, 100],
+      "parameters": {
+        "responseCode": 400,
+        "responseBody": "{\"message\":\"Email non autorisé\"}"
+      }
+    },
+    {
+      "id": "fn_check_size",
+      "name": "Function - Check taille fichiers",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [-760, -80],
+      "parameters": {
+        "functionCode": "const max=2*1024*1024; const bin=this.getBinaryData(); for(const k of Object.keys(bin||{})){ const s=bin[k].data?Buffer.from(bin[k].data,'base64').length:0; if(s>max){ return [{ error:true, file:k, size:s }]; } } return [{ error:false }];"
+      }
+    },
+    {
+      "id": "if_too_big",
+      "name": "If - Fichier trop gros",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-560, -80],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            { "value1": "={{$json.error}}", "operation": "isTrue" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "respond_too_big",
+      "name": "Respond - Fichier trop gros",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [-560, 100],
+      "parameters": {
+        "responseCode": 400,
+        "responseBody": "={\"message\":\"Un justificatif dépasse 2 Mo\"}"
+      }
+    },
+    {
+      "id": "drive_find_agent",
+      "name": "Drive - Rechercher dossier agent",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 4,
+      "position": [-360, -180],
+      "credentials": { "googleDriveOAuth2Api": { "id": "[GDRIVE_CRED_ID]", "name": "[GDRIVE_CRED_NAME]" } },
+      "parameters": {
+        "operation": "list",
+        "filters": {
+          "q": "={{\"mimeType = 'application/vnd.google-apps.folder' and name = '\" + $json.agent + \"' and '" + "[DRIVE_ROOT_FOLDER_ID]" + \"' in parents\"}}"
+        }
+      }
+    },
+    {
+      "id": "if_agent_folder",
+      "name": "If - Dossier agent existe",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-160, -180],
+      "parameters": {
+        "conditions": {
+          "number": [
+            { "value1": "={{$json.length}}", "operation": "larger", "value2": 0 }
+          ]
+        }
+      }
+    },
+    {
+      "id": "drive_create_agent",
+      "name": "Drive - Créer dossier agent",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 4,
+      "position": [-160, -320],
+      "credentials": { "googleDriveOAuth2Api": { "id": "[GDRIVE_CRED_ID]", "name": "[GDRIVE_CRED_NAME]" } },
+      "parameters": {
+        "operation": "createFolder",
+        "name": "={{$json.agent}}",
+        "parents": ["[DRIVE_ROOT_FOLDER_ID]"]
+      }
+    },
+    {
+      "id": "set_agent_folder_id",
+      "name": "Set - agentFolderId",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [40, -260],
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            { "name": "agentFolderId", "value": "={{$json.id || $items(\"Drive - Rechercher dossier agent\",0,0).json[0].id}}"}
+          ]
+        }
+      }
+    },
+    {
+      "id": "set_req_folder_name",
+      "name": "Set - Nom dossier demande",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [240, -260],
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            { "name": "reqFolderName", "value": "={{\"Absence-\" + $json.debut.replace(/[:\\-]/g,'').replace('T','').slice(0,12) + \"-\" + $json.fin.replace(/[:\\-]/g,'').replace('T','').slice(0,12)}}"}
+          ]
+        }
+      }
+    },
+    {
+      "id": "drive_create_req",
+      "name": "Drive - Créer dossier demande",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 4,
+      "position": [460, -260],
+      "credentials": { "googleDriveOAuth2Api": { "id": "[GDRIVE_CRED_ID]", "name": "[GDRIVE_CRED_NAME]" } },
+      "parameters": {
+        "operation": "createFolder",
+        "name": "={{$json.reqFolderName}}",
+        "parents": ["={{$json.agentFolderId}}"]
+      }
+    },
+    {
+      "id": "itemize_files",
+      "name": "Item Lists - Fichiers",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 1,
+      "position": [660, -80],
+      "parameters": {
+        "operation": "splitOut",
+        "fieldsToSplitOut": "binary"
+      }
+    },
+    {
+      "id": "drive_upload_files",
+      "name": "Drive - Upload justificatifs",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 4,
+      "position": [860, -80],
+      "credentials": { "googleDriveOAuth2Api": { "id": "[GDRIVE_CRED_ID]", "name": "[GDRIVE_CRED_NAME]" } },
+      "parameters": {
+        "operation": "upload",
+        "binaryData": true,
+        "binaryPropertyName": "={{Object.keys($binary||{})[0]}}",
+        "parents": ["={{$items(\"Drive - Créer dossier demande\",0,0).json.id}}"],
+        "options": { "useFilename": true }
+      }
+    },
+    {
+      "id": "agg_files_links",
+      "name": "Function - Collecter liens fichiers",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [1060, -80],
+      "parameters": {
+        "functionCode": "const out=this.getInputData(); const links=[]; for(const i of out){ if(i.json.webViewLink) links.push(i.json.webViewLink); } return [{ files:links }];"
+      }
+    },
+    {
+      "id": "html_summary",
+      "name": "Function - HTML recap",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [1260, -260],
+      "parameters": {
+        "functionCode": "const f=(s)=>String(s||''); const links=$items('Function - Collecter liens fichiers',0,0).json.files||[]; const li=links.map(l=>`<li><a href='${l}'>Justificatif</a></li>`).join(''); const h=`<html><body><h2>Demande d'absence</h2><ul><li>Agent - ${f($json.agent)}</li><li>Email - ${f($json.agent_email)}</li><li>Debut - ${f($json.debut)}</li><li>Fin - ${f($json.fin)}</li><li>Motif - ${f($json.motif)}</li><li>Remarques - ${f($json.remarques)}</li><li>Rattrapage - ${f($json.rattrapage)}</li></ul><ul>${li}</ul></body></html>`; const b=Buffer.from(h,'utf8'); this.setBinaryData(b,'data','text/html'); return [{ filename:'recap.html' }];"
+      }
+    },
+    {
+      "id": "drive_upload_html",
+      "name": "Drive - Upload HTML recap",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 4,
+      "position": [1460, -260],
+      "credentials": { "googleDriveOAuth2Api": { "id": "[GDRIVE_CRED_ID]", "name": "[GDRIVE_CRED_NAME]" } },
+      "parameters": {
+        "operation": "upload",
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "fileName": "recap.html",
+        "parents": ["={{$items(\"Drive - Créer dossier demande\",0,0).json.id}}"],
+        "options": { "convert": true }
+      }
+    },
+    {
+      "id": "drive_export_pdf",
+      "name": "Drive - Export PDF recap",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 4,
+      "position": [1660, -260],
+      "credentials": { "googleDriveOAuth2Api": { "id": "[GDRIVE_CRED_ID]", "name": "[GDRIVE_CRED_NAME]" } },
+      "parameters": {
+        "operation": "download",
+        "fileId": "={{$json.id}}",
+        "options": { "mimeType": "application/pdf" }
+      }
+    },
+    {
+      "id": "drive_upload_pdf",
+      "name": "Drive - Sauver PDF recap",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 4,
+      "position": [1860, -260],
+      "credentials": { "googleDriveOAuth2Api": { "id": "[GDRIVE_CRED_ID]", "name": "[GDRIVE_CRED_NAME]" } },
+      "parameters": {
+        "operation": "upload",
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "fileName": "recap.pdf",
+        "parents": ["={{$items(\"Drive - Créer dossier demande\",0,0).json.id}}"]
+      }
+    },
+    {
+      "id": "notion_create",
+      "name": "Notion - Create page",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [2060, -80],
+      "credentials": { "notionApi": { "id": "[NOTION_CRED_ID]", "name": "[NOTION_CRED_NAME]" } },
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": "24a6b80be0a58025bbc6e909596d0fa1",
+        "simple": false,
+        "propertiesUi": {
+          "propertyValues": [
+            { "key": "Agent", "title": "={{$json.agent}}" },
+            { "key": "Email", "email": "={{$json.agent_email}}" },
+            { "key": "Debut", "date": { "start": "={{$json.debut}}" } },
+            { "key": "Fin", "date": { "start": "={{$json.fin}}" } },
+            { "key": "Motif", "richText": "={{$json.motif}}" },
+            { "key": "Remarques", "richText": "={{$json.remarques||''}}" },
+            { "key": "Rattrapage", "date": { "start": "={{$json.rattrapage||''}}" } },
+            { "key": "Rattrapage effectué", "checkbox": false },
+            { "key": "Statut", "select": "En attente" },
+            { "key": "Journal", "richText": "Création de la demande" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "notion_attach_files",
+      "name": "Notion - Attacher fichiers",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [2260, -80],
+      "credentials": { "notionApi": { "id": "[NOTION_CRED_ID]", "name": "[NOTION_CRED_NAME]" } },
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": "={{$json.id}}",
+        "propertiesUi": {
+          "propertyValues": [
+            { "key": "Justificatifs", "files": "={{($items(\"Function - Collecter liens fichiers\",0,0).json.files||[]).concat([$items(\"Drive - Sauver PDF recap\",0,0).json.webViewLink||'']).filter(Boolean)}}" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "gmail_notify_mgr",
+      "name": "Gmail - Notifier gestionnaire",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [2460, -80],
+      "credentials": { "gmailOAuth2": { "id": "[GMAIL_CRED_ID]", "name": "[GMAIL_CRED_NAME]" } },
+      "parameters": {
+        "operation": "sendMessage",
+        "from": "[FROM_ALIAS_EX]",
+        "toList": "[EMAIL_GESTIONNAIRE_EX]",
+        "subject": "Nouvelle demande d'absence - {{$json.properties.Agent.title[0].plain_text}}",
+        "message": "Agent - {{$json.properties.Agent.title[0].plain_text}} - Debut - {{$json.properties.Debut.date.start}} - Fin - {{$json.properties.Fin.date.start}} - Motif - {{$json.properties.Motif.rich_text[0].plain_text}}"
+      }
+    },
+    {
+      "id": "respond_ok",
+      "name": "Respond - OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2660, -80],
+      "parameters": {
+        "responseCode": 200,
+        "responseBody": "{\"message\":\"Demande enregistrée\"}"
+      }
+    },
+
+    {
+      "id": "notion_trigger",
+      "name": "Notion Trigger - Decision",
+      "type": "n8n-nodes-base.notionTrigger",
+      "typeVersion": 1,
+      "position": [-1200, 420],
+      "credentials": { "notionApi": { "id": "[NOTION_CRED_ID]", "name": "[NOTION_CRED_NAME]" } },
+      "parameters": {
+        "event": "pageUpdated",
+        "databaseId": "24a6b80be0a58025bbc6e909596d0fa1"
+      }
+    },
+    {
+      "id": "if_valide",
+      "name": "If - Statut Validé",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-980, 420],
+      "parameters": {
+        "conditions": {
+          "string": [
+            { "value1": "={{$json.properties.Statut.select.name||''}}", "operation": "equals", "value2": "Validé" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "if_refuse",
+      "name": "If - Statut Refusé",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-980, 600],
+      "parameters": {
+        "conditions": {
+          "string": [
+            { "value1": "={{$json.properties.Statut.select.name||''}}", "operation": "equals", "value2": "Refusé" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "notion_update_valide",
+      "name": "Notion - MAJ decision Valide",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [-760, 420],
+      "credentials": { "notionApi": { "id": "[NOTION_CRED_ID]", "name": "[NOTION_CRED_NAME]" } },
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": "={{$json.id}}",
+        "propertiesUi": {
+          "propertyValues": [
+            { "key": "Date décision", "date": { "start": "={{new Date().toISOString()}}"} },
+            { "key": "Décideur", "richText": "[TON NOM]" },
+            { "key": "Journal", "richText": "={{\"Validé le \" + new Date().toLocaleString()}}"}
+          ]
+        }
+      }
+    },
+    {
+      "id": "gmail_agent_ok",
+      "name": "Gmail - Agent Validé",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [-560, 420],
+      "credentials": { "gmailOAuth2": { "id": "[GMAIL_CRED_ID]", "name": "[GMAIL_CRED_NAME]" } },
+      "parameters": {
+        "operation": "sendMessage",
+        "from": "[FROM_ALIAS_EX]",
+        "toList": "={{$json.properties.Email.email}}",
+        "subject": "Demande d'absence validée",
+        "message": "Bonjour - ta demande d'absence est validée."
+      }
+    },
+    {
+      "id": "notion_update_refuse",
+      "name": "Notion - MAJ decision Refus",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [-760, 600],
+      "credentials": { "notionApi": { "id": "[NOTION_CRED_ID]", "name": "[NOTION_CRED_NAME]" } },
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": "={{$json.id}}",
+        "propertiesUi": {
+          "propertyValues": [
+            { "key": "Date décision", "date": { "start": "={{new Date().toISOString()}}"} },
+            { "key": "Décideur", "richText": "[TON NOM]" },
+            { "key": "Journal", "richText": "={{\"Refusé le \" + new Date().toLocaleString()}}"}
+          ]
+        }
+      }
+    },
+    {
+      "id": "gmail_agent_ko",
+      "name": "Gmail - Agent Refusé",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [-560, 600],
+      "credentials": { "gmailOAuth2": { "id": "[GMAIL_CRED_ID]", "name": "[GMAIL_CRED_NAME]" } },
+      "parameters": {
+        "operation": "sendMessage",
+        "from": "[FROM_ALIAS_EX]",
+        "toList": "={{$json.properties.Email.email}}",
+        "subject": "Demande d'absence refusée",
+        "message": "Bonjour - ta demande d'absence est refusée."
+      }
+    }
+  ],
+  "connections": {
+    "Form - Saisie d'absence": { "main": [ [ { "node": "If - Domaine autorisé", "type": "main", "index": 0 } ] ] },
+    "If - Domaine autorisé": {
+      "main": [
+        [ { "node": "Respond - Domaine refusé", "type": "main", "index": 0 } ],
+        [ { "node": "Function - Check taille fichiers", "type": "main", "index": 0 } ]
+      ]
+    },
+    "Function - Check taille fichiers": { "main": [ [ { "node": "If - Fichier trop gros", "type": "main", "index": 0 } ] ] },
+    "If - Fichier trop gros": {
+      "main": [
+        [ { "node": "Respond - Fichier trop gros", "type": "main", "index": 0 } ],
+        [ { "node": "Drive - Rechercher dossier agent", "type": "main", "index": 0 } ]
+      ]
+    },
+    "Drive - Créer dossier agent": { "main": [ [ { "node": "Set - agentFolderId", "type": "main", "index": 0 } ] ] },
+    "Drive - Rechercher dossier agent": { "main": [ [ { "node": "If - Dossier agent existe", "type": "main", "index": 0 } ] ] },
+    "If - Dossier agent existe": {
+      "main": [
+        [ { "node": "Set - agentFolderId", "type": "main", "index": 0 } ],
+        [ { "node": "Drive - Créer dossier agent", "type": "main", "index": 0 } ]
+      ]
+    },
+    "Set - agentFolderId": { "main": [ [ { "node": "Set - Nom dossier demande", "type": "main", "index": 0 } ] ] },
+    "Set - Nom dossier demande": { "main": [ [ { "node": "Drive - Créer dossier demande", "type": "main", "index": 0 } ] ] },
+    "Item Lists - Fichiers": { "main": [ [ { "node": "Drive - Upload justificatifs", "type": "main", "index": 0 } ] ] },
+    "Drive - Créer dossier demande": {
+      "main": [
+        [ { "node": "Item Lists - Fichiers", "type": "main", "index": 0 } ],
+        [ { "node": "Function - HTML recap", "type": "main", "index": 0 } ]
+      ]
+    },
+    "Drive - Upload justificatifs": { "main": [ [ { "node": "Function - Collecter liens fichiers", "type": "main", "index": 0 } ] ] },
+    "Function - Collecter liens fichiers": { "main": [ [ { "node": "Function - HTML recap", "type": "main", "index": 0 } ] ] },
+    "Function - HTML recap": { "main": [ [ { "node": "Drive - Upload HTML recap", "type": "main", "index": 0 } ] ] },
+    "Drive - Upload HTML recap": { "main": [ [ { "node": "Drive - Export PDF recap", "type": "main", "index": 0 } ] ] },
+    "Drive - Export PDF recap": { "main": [ [ { "node": "Drive - Sauver PDF recap", "type": "main", "index": 0 } ] ] },
+    "Drive - Sauver PDF recap": { "main": [ [ { "node": "Notion - Create page", "type": "main", "index": 0 } ] ] },
+    "Notion - Create page": { "main": [ [ { "node": "Notion - Attacher fichiers", "type": "main", "index": 0 } ] ] },
+    "Notion - Attacher fichiers": { "main": [ [ { "node": "Gmail - Notifier gestionnaire", "type": "main", "index": 0 } ] ] },
+    "Gmail - Notifier gestionnaire": { "main": [ [ { "node": "Respond - OK", "type": "main", "index": 0 } ] ] },
+
+    "Notion Trigger - Decision": { "main": [ [ { "node": "If - Statut Validé", "type": "main", "index": 0 }, { "node": "If - Statut Refusé", "type": "main", "index": 0 } ] ] },
+    "If - Statut Validé": { "main": [ [ { "node": "Notion - MAJ decision Valide", "type": "main", "index": 0 } ], [ ] ] },
+    "Notion - MAJ decision Valide": { "main": [ [ { "node": "Gmail - Agent Validé", "type": "main", "index": 0 } ] ] },
+    "If - Statut Refusé": { "main": [ [ { "node": "Notion - MAJ decision Refus", "type": "main", "index": 0 } ], [ ] ] },
+    "Notion - MAJ decision Refus": { "main": [ [ { "node": "Gmail - Agent Refusé", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "executionOrder": "v1"
+  }
+}

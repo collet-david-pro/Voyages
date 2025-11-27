@@ -1,0 +1,62 @@
+
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <!-- Colonne pour créer un nouveau voyage -->
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-plus-circle-fill"></i> Créer un nouveau voyage</h4>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('ajouter_voyage') }}" method="post">
+                    <div class="mb-3">
+                        <label for="destination" class="form-label">Destination</label>
+                        <input type="text" class="form-control" id="destination" name="destination" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="date_depart" class="form-label">Date de départ</label>
+                        <input type="date" class="form-control" id="date_depart" name="date_depart" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="prix_eleve" class="form-label">Prix par élève (€)</label>
+                        <input type="number" step="0.01" class="form-control" id="prix_eleve" name="prix_eleve" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="nb_participants_attendu" class="form-label">Nombre de participants attendus</label>
+                        <input type="number" class="form-control" id="nb_participants_attendu" name="nb_participants_attendu" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-send-plus"></i> Créer le voyage
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Colonne pour la liste des voyages -->
+    <div class="col-md-8">
+        <h2 class="mb-4">
+            <i class="bi bi-briefcase-fill"></i> Liste des voyages
+        </h2>
+        <div class="list-group shadow-sm">
+            {% if voyages %}
+                {% for voyage in voyages %}
+                <a href="{{ url_for('voyage_details', voyage_id=voyage.id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-1">{{ voyage.destination }}</h5>
+                        <small>Départ le {{ voyage.date_depart|replace('-', '/') }}</small>
+                    </div>
+                    <span class="badge bg-primary rounded-pill">{{ "%.2f"|format(voyage.prix_eleve) }} €</span>
+                </a>
+                {% endfor %}
+            {% else %}
+                <div class="list-group-item">
+                    <p class="text-center text-muted mb-0">Aucun voyage programmé pour le moment.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

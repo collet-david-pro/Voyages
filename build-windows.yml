@@ -1,0 +1,34 @@
+name: Build Windows Executable
+
+on:
+  push:
+    branches: [ main ] # Se déclenche à chaque push sur la branche 'main'
+
+jobs:
+  build:
+    runs-on: windows-latest # C'est la magie : on demande une machine Windows !
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3 # Étape 1: Récupère votre code
+
+    - name: Set up Python
+      uses: actions/setup-python@v4 # Étape 2: Installe Python sur la machine Windows
+      with:
+        python-version: '3.9' # Assurez-vous que c'est la même version que la vôtre
+
+    - name: Install dependencies
+      run: | # Étape 3: Installe les bibliothèques
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build with PyInstaller
+      run: | # Étape 4: Lance la compilation
+        pyinstaller --name "GestionVoyages" --onefile --add-data "templates;templates" --add-data "schema.sql;." app.py
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3 # Étape 5: Met le résultat à disposition
+      with:
+        name: GestionVoyages-Windows
+        path: dist/GestionVoyages.exe

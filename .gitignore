@@ -1,0 +1,10 @@
+# Environnement virtuel Python
+venv/
+
+# Fichiers de base de données
+*.db
+*.sqlite3
+
+# Fichiers temporaires Python
+__pycache__/
+*.pyc

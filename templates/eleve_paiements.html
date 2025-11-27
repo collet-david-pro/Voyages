@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="mb-0"><i class="bi bi-wallet2"></i> Paiements de {{ eleve.prenom }} {{ eleve.nom }}</h1>
+            <p class="text-muted mb-0">Voyage : {{ voyage.destination }}</p>
+        </div>
+        <div>
+            <a href="{{ url_for('generer_attestation_pdf', eleve_id=eleve.id) }}" class="btn btn-info"><i class="bi bi-file-earmark-pdf-fill"></i> Générer l'attestation</a>
+            <a href="{{ url_for('voyage_details', voyage_id=voyage.id) }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Retour au voyage</a>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4 shadow-sm">
+    <div class="card-header"><h5 class="mb-0">Situation financière</h5></div>
+    <div class="card-body">
+        <p>Prix du voyage : {{ "%.2f"|format(voyage.prix_eleve) }} €</p>
+        <p>Total payé : <strong class="text-success">{{ "%.2f"|format(total_paye) }} €</strong></p>
+        <p>Reste à payer : <strong class="text-danger">{{ "%.2f"|format(reste_a_payer) }} €</strong></p>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header"><h5 class="mb-0">Historique des paiements</h5></div>
+    <table class="table table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Date</th>
+                <th>Montant</th>
+                <th>Mode de paiement</th>
+                <th>Référence</th>
+                <th class="text-center">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for paiement in paiements %}
+            <tr class="align-middle">
+                <td>{{ paiement.date.strftime('%d/%m/%Y') }}</td>
+                <td>{{ "%.2f"|format(paiement.montant) }} €</td>
+                <td>{{ paiement.mode_paiement }}</td>
+                <td>{{ paiement.reference }}</td>
+                <td class="text-center">
+                    <a href="{{ url_for('modifier_paiement', paiement_id=paiement.id) }}" class="btn btn-sm btn-warning">Modifier</a>
+                    <form action="{{ url_for('supprimer_paiement', paiement_id=paiement.id) }}" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce paiement ?')">Supprimer</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="text-center text-muted p-4">Aucun paiement enregistré pour cet élève.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

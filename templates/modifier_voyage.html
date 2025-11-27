@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-pencil-fill"></i> Modifier le voyage</h4>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('modifier_voyage', voyage_id=voyage.id) }}" method="post">
+                    <div class="mb-3">
+                        <label for="destination" class="form-label">Destination</label>
+                        <input type="text" class="form-control" id="destination" name="destination" value="{{ voyage.destination }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="date_depart" class="form-label">Date de départ</label>
+                        <input type="date" class="form-control" id="date_depart" name="date_depart" value="{{ voyage.date_depart.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="prix_eleve" class="form-label">Prix par élève (€)</label>
+                        <input type="number" step="0.01" class="form-control" id="prix_eleve" name="prix_eleve" value="{{ voyage.prix_eleve }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="nb_participants_attendu" class="form-label">Nombre de participants attendus</label>
+                        <input type="number" class="form-control" id="nb_participants_attendu" name="nb_participants_attendu" value="{{ voyage.nb_participants_attendu }}" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Enregistrer les modifications</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

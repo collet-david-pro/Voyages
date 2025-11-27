@@ -1,0 +1,75 @@
+
+{% extends 'base.html' %}
+
+{% block content %}
+<h1 class="mb-4"><i class="bi bi-gear-fill"></i> Configuration</h1>
+
+<div class="row">
+    <!-- Colonne pour les paramètres généraux -->
+    <div class="col-md-8">
+        <form action="{{ url_for('enregistrer_parametres') }}" method="post">
+            <!-- Paramètres de l'établissement -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-building"></i> Informations de l'établissement</h5></div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="nom_college" class="form-label">Nom de l'établissement</label>
+                        <input type="text" class="form-control" id="nom_college" name="nom_college" value="{{ parametres.get('nom_college', '') }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="ville_college" class="form-label">Ville de l'établissement</label>
+                        <input type="text" class="form-control" id="ville_college" name="ville_college" value="{{ parametres.get('ville_college', '') }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="nom_principal" class="form-label">Nom du Principal</label>
+                        <input type="text" class="form-control" id="nom_principal" name="nom_principal" value="{{ parametres.get('nom_principal', '') }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="nom_secretaire_general" class="form-label">Nom du Secrétaire Général / Gestionnaire</label>
+                        <input type="text" class="form-control" id="nom_secretaire_general" name="nom_secretaire_general" value="{{ parametres.get('nom_secretaire_general', '') }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Texte de l'attestation -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-file-text-fill"></i> Texte de l'attestation de paiement</h5></div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="texte_attestation" class="form-label">Personnalisez le texte qui apparaîtra sur l'attestation.</label>
+                        <textarea class="form-control" id="texte_attestation" name="texte_attestation" rows="4">{{ parametres.get('texte_attestation', '') }}</textarea>
+                        <div class="form-text">Utilisez [Nom du responsable] pour insérer un champ à remplir manuellement sur le PDF.</div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-save-fill"></i> Enregistrer tous les paramètres</button>
+        </form>
+    </div>
+
+    <!-- Colonne pour les modes de paiement -->
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header"><h5 class="mb-0"><i class="bi bi-credit-card-2-front-fill"></i> Gérer les modes de paiement</h5></div>
+            <div class="card-body">
+                <form action="{{ url_for('ajouter_mode_paiement') }}" method="post" class="d-flex mb-3">
+                    <input type="text" name="libelle" class="form-control me-2" placeholder="Nouveau mode..." required>
+                    <button type="submit" class="btn btn-success"><i class="bi bi-plus-lg"></i></button>
+                </form>
+                <ul class="list-group list-group-flush">
+                    {% for mode in modes %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ mode.libelle }}
+                        <form action="{{ url_for('supprimer_mode_paiement', mode_id=mode.id) }}" method="post" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce mode de paiement ?');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash-fill"></i></button>
+                        </form>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted">Aucun mode de paiement.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,254 @@
+
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+        .printable-area, .printable-area * {
+            visibility: visible;
+        }
+        .printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+        }
+        .no-print, .no-print * {
+            display: none !important;
+        }
+    }
+</style>
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1 class="mb-1"><i class="bi bi-airplane-fill"></i> Voyage : {{ voyage.destination }}</h1>
+            <span class="badge bg-success fs-5">Prix par élève : {{ "%.2f"|format(voyage.prix_eleve) }} €</span>
+        </div>
+        <a href="{{ url_for('modifier_voyage', voyage_id=voyage.id) }}" class="btn btn-outline-secondary no-print">
+            <i class="bi bi-pencil-square"></i> Modifier le voyage
+        </a>
+    </div>
+</div>
+
+<!-- Section Récapitulatif -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-center h-100 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-people-fill"></i> Participants</h5>
+                <p class="card-text fs-2 fw-bold">{{ nb_inscrits }} / {{ voyage.nb_participants_attendu }}</p>
+                <small class="text-muted">Inscrits / Attendus</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-graph-up-arrow"></i> Finances</h5>
+                <p class="mb-1">Total perçu : <strong class="text-success">{{ "%.2f"|format(total_percu_voyage) }} €</strong></p>
+                <p class="mb-2">Montant total attendu : <strong class="text-primary">{{ "%.2f"|format(montant_total_attendu) }} €</strong></p>
+                <div class="progress" style="height: 20px;">
+                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ (total_percu_voyage / montant_total_attendu * 100) if montant_total_attendu > 0 else 0 }}%;" aria-valuenow="{{ total_percu_voyage }}" aria-valuemin="0" aria-valuemax="{{ montant_total_attendu }}">{{ "%.0f"|format((total_percu_voyage / montant_total_attendu * 100) if montant_total_attendu > 0 else 0) }}%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Section Ajouter un élève -->
+<div class="card shadow-sm mb-4 no-print">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-person-plus-fill"></i> Ajouter un élève
+        </h5>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('ajouter_eleve') }}" method="post" class="row g-3 align-items-end">
+            <input type="hidden" name="voyage_id" value="{{ voyage.id }}">
+            <div class="col-md">
+                <label for="nom" class="form-label">Nom</label>
+                <input type="text" class="form-control" name="nom" required>
+            </div>
+            <div class="col-md">
+                <label for="prenom" class="form-label">Prénom</label>
+                <input type="text" class="form-control" name="prenom" required>
+            </div>
+            <div class="col-md">
+                <label for="classe" class="form-label">Classe</label>
+                <input type="text" class="form-control" name="classe" required>
+            </div>
+            <div class="col-md-auto">
+                <button type="submit" class="btn btn-primary w-100">Inscrire</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Section Liste des élèves -->
+<div class="card shadow-sm printable-area">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-people-fill"></i> Liste des élèves inscrits
+        </h5>
+        <span class="no-print">
+            <button onclick="window.print()" class="btn btn-sm btn-outline-secondary"><i class="bi bi-printer-fill"></i> Imprimer la liste</button>
+        </span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped table-hover mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Nom</th>
+                    <th>Prénom</th>
+                    <th>Classe</th>
+                    <th>Statut</th>
+                    <th class="text-center">Fiche Engagement</th>
+                    <th class="text-center">Liste Définitive</th>
+                    <th>Total Payé</th>
+                    <th>Reste à Payer</th>
+                    <th class="text-center no-print">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for eleve in eleves %}
+                <tr class="align-middle {% if eleve.statut == 'A_REMBOURSER' %}table-danger{% endif %}">
+                    <td>{{ eleve.nom }}</td>
+                    <td>{{ eleve.prenom }}</td>
+                    <td>{{ eleve.classe }}</td>
+                    <td>
+                        {% if eleve.statut == 'INSCRIT' %}
+                            <span class="badge bg-info">Inscrit</span>
+                        {% elif eleve.statut == 'ANNULÉ' %}
+                            <span class="badge bg-secondary">Annulé</span>
+                        {% elif eleve.statut == 'A_REMBOURSER' %}
+                            <span class="badge bg-warning text-dark">À rembourser</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <input class="form-check-input" type="checkbox" onchange="toggleValidation({{ eleve.id }}, 'fiche_engagement')" {% if eleve.fiche_engagement %}checked{% endif %}>
+                    </td>
+                    <td class="text-center">
+                        <input class="form-check-input" type="checkbox" onchange="toggleValidation({{ eleve.id }}, 'liste_definitive')" {% if eleve.liste_definitive %}checked{% endif %}>
+                    </td>
+                    <td>{{ "%.2f"|format(eleve.total_paye) }} €</td>
+                    <td>{{ "%.2f"|format(eleve.reste_a_payer) }} €</td>
+                    <td class="text-center no-print">
+                        <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#paiementModal{{ eleve.id }}">
+                            <i class="bi bi-currency-euro"></i> Paiement
+                        </button>
+                        <a href="{{ url_for('eleve_paiements', eleve_id=eleve.id) }}" class="btn btn-sm btn-info">
+                            <i class="bi bi-card-list"></i> Gérer
+                        </a>
+                        <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#statutModal{{ eleve.id }}">
+                            <i class="bi bi-pencil-square"></i> Statut
+                        </button>
+                    </td>
+                </tr>
+
+                <!-- Modal Ajouter Paiement pour {{ eleve.prenom }} {{ eleve.nom }} -->
+                <div class="modal fade" id="paiementModal{{ eleve.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Ajouter un paiement pour {{ eleve.prenom }} {{ eleve.nom }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <form action="{{ url_for('ajouter_paiement') }}" method="post">
+                                <div class="modal-body">
+                                    <input type="hidden" name="voyage_id" value="{{ voyage.id }}">
+                                    <input type="hidden" name="eleve_id" value="{{ eleve.id }}">
+                                    <div class="mb-3">
+                                        <label class="form-label">Montant (€)</label>
+                                        <input type="number" step="0.01" name="montant" class="form-control" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Mode de paiement</label>
+                                        <select name="mode_paiement_id" class="form-select" required>
+                                            {% for mode in modes_paiement %}
+                                            <option value="{{ mode.id }}">{{ mode.libelle }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Date du paiement</label>
+                                        <input type="date" name="date" class="form-control" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Référence (ex: N° chèque)</label>
+                                        <input type="text" name="reference" class="form-control">
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Modifier Statut pour {{ eleve.prenom }} {{ eleve.nom }} -->
+                <div class="modal fade" id="statutModal{{ eleve.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Modifier le statut de {{ eleve.prenom }} {{ eleve.nom }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <form action="{{ url_for('modifier_statut_eleve') }}" method="post">
+                                <div class="modal-body">
+                                    <input type="hidden" name="voyage_id" value="{{ voyage.id }}">
+                                    <input type="hidden" name="eleve_id" value="{{ eleve.id }}">
+                                    <p>Statut actuel : <strong>{{ eleve.statut }}</strong></p>
+                                    <div class="mb-3">
+                                        <label class="form-label">Nouveau statut</label>
+                                        <select name="statut" class="form-select" required>
+                                            <option value="INSCRIT" {% if eleve.statut == 'INSCRIT' %}selected{% endif %}>Inscrit</option>
+                                            <option value="ANNULÉ">Annuler l'inscription</option>
+                                        </select>
+                                        <div class="form-text">Si un paiement a été effectué, le statut passera automatiquement à "À rembourser".</div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                                    <button type="submit" class="btn btn-warning">Mettre à jour</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if not eleves %}
+        <div class="text-center p-3 text-muted">
+            Aucun élève n'est encore inscrit à ce voyage.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function toggleValidation(eleveId, field) {
+    fetch("{{ url_for('toggle_validation') }}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            eleve_id: eleveId,
+            field: field
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status !== 'success') {
+            console.error('Erreur lors de la mise à jour:', data.message);
+        }
+    });
+}
+</script>
+{% endblock %}
