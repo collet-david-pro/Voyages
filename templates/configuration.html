@@ -48,9 +48,10 @@
     </div>
 
     <!-- Colonne pour les modes de paiement -->
-    <div class="col-md-4">
-        <div class="card shadow-sm">
-            <div class="card-header"><h5 class="mb-0"><i class="bi bi-credit-card-2-front-fill"></i> Gérer les modes de paiement</h5></div>
+    <div class="col-md-4 d-flex flex-column">
+        <!-- Gérer les modes de paiement -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header"><h5 class="mb-0"><i class="bi bi-credit-card-2-front-fill"></i> Modes de paiement</h5></div>
             <div class="card-body">
                 <form action="{{ url_for('ajouter_mode_paiement') }}" method="post" class="d-flex mb-3">
                     <input type="text" name="libelle" class="form-control me-2" placeholder="Nouveau mode..." required>
@@ -60,12 +61,35 @@
                     {% for mode in modes %}
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         {{ mode.libelle }}
-                        <form action="{{ url_for('supprimer_mode_paiement', mode_id=mode.id) }}" method="post" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce mode de paiement ?');">
+                        <form action="{{ url_for('supprimer_mode_paiement', mode_id=mode.id) }}" method="post" onsubmit="return confirm('Attention : supprimer ce mode de paiement peut causer des erreurs s\'il est déjà utilisé. Continuer ?');">
                             <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash-fill"></i></button>
                         </form>
                     </li>
                     {% else %}
                     <li class="list-group-item text-muted">Aucun mode de paiement.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <!-- Gérer les catégories de budget -->
+        <div class="card shadow-sm">
+            <div class="card-header"><h5 class="mb-0"><i class="bi bi-tags-fill"></i> Catégories de budget</h5></div>
+            <div class="card-body">
+                <form action="{{ url_for('ajouter_categorie_budget') }}" method="post" class="d-flex mb-3">
+                    <input type="text" name="nom" class="form-control me-2" placeholder="Nouvelle catégorie..." required>
+                    <button type="submit" class="btn btn-success"><i class="bi bi-plus-lg"></i></button>
+                </form>
+                <ul class="list-group list-group-flush">
+                    {% for cat in categories %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ cat.nom }}
+                        <form action="{{ url_for('supprimer_categorie_budget', categorie_id=cat.id) }}" method="post" onsubmit="return confirm('Attention : supprimer cette catégorie peut causer des erreurs si elle est déjà utilisée. Continuer ?');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash-fill"></i></button>
+                        </form>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted">Aucune catégorie de budget.</li>
                     {% endfor %}
                 </ul>
             </div>

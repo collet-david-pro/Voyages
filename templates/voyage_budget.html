@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1 class="mb-1"><i class="bi bi-airplane-fill"></i> Voyage : {{ voyage.destination }}</h1>
+            <span class="badge bg-success fs-5">Prix par élève : {{ "%.2f"|format(voyage.prix_eleve) }} €</span>
+        </div>
+        <a href="{{ url_for('modifier_voyage', voyage_id=voyage.id) }}" class="btn btn-outline-secondary no-print">
+            <i class="bi bi-pencil-square"></i> Modifier le voyage
+        </a>
+    </div>
+</div>
+
+<!-- Onglets de navigation -->
+<ul class="nav nav-tabs nav-fill mb-4 no-print" id="voyageTab" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('voyage_details', voyage_id=voyage.id) }}">
+            <i class="bi bi-people-fill"></i> Participants
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link active" href="{{ url_for('voyage_budget', voyage_id=voyage.id) }}">
+            <i class="bi bi-calculator-fill"></i> Budget
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('voyage_details', voyage_id=voyage.id, tab='documents') }}">
+            <i class="bi bi-folder-fill"></i> Documents
+        </a>
+    </li>
+</ul>
+
+<!-- Section Budget -->
+<div class="row">
+    <!-- Colonne Dépenses -->
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-danger text-white"><h5 class="mb-0"><i class="bi bi-arrow-down-circle-fill"></i> Dépenses ({{ "%.2f"|format(total_depenses) }} €)</h5></div>
+            <ul class="list-group list-group-flush">
+                {% for item in depenses %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        {{ item.description }}
+                        <small class="text-muted d-block">{{ item.categorie_nom }}</small>
+                    </div>
+                    <div>
+                        <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill me-2">{{ "%.2f"|format(item.montant) }} €</span>
+                        <form action="{{ url_for('supprimer_item_budget', item_id=item.id) }}" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer cette ligne ?');"><i class="bi bi-trash"></i></button>
+                        </form>
+                    </div>
+                </li>
+                {% else %}
+                <li class="list-group-item text-muted">Aucune dépense enregistrée.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Colonne Recettes -->
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-success text-white"><h5 class="mb-0"><i class="bi bi-arrow-up-circle-fill"></i> Recettes ({{ "%.2f"|format(total_recettes) }} €)</h5></div>
+            <ul class="list-group list-group-flush">
+                {% for item in recettes %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        {{ item.description }}
+                        <small class="text-muted d-block">{{ item.categorie_nom }}</small>
+                    </div>
+                    <div>
+                        <span class="badge bg-success-subtle text-success-emphasis rounded-pill me-2">{{ "%.2f"|format(item.montant) }} €</span>
+                        <form action="{{ url_for('supprimer_item_budget', item_id=item.id) }}" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer cette ligne ?');"><i class="bi bi-trash"></i></button>
+                        </form>
+                    </div>
+                </li>
+                {% else %}
+                <li class="list-group-item text-muted">Aucune recette enregistrée.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Section Solde et Actions -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body text-center">
+        <h5 class="card-title">Solde prévisionnel</h5>
+        {% if solde >= 0 %}
+            <p class="fs-2 fw-bold text-success">+ {{ "%.2f"|format(solde) }} €</p>
+        {% else %}
+            <p class="fs-2 fw-bold text-danger">{{ "%.2f"|format(solde) }} €</p>
+        {% endif %}
+        <a href="{{ url_for('generer_budget_pdf', voyage_id=voyage.id) }}" class="btn btn-danger"><i class="bi bi-file-earmark-pdf-fill"></i> Exporter le budget détaillé en PDF</a>
+    </div>
+</div>
+
+<!-- Section Ajouter une ligne budgétaire -->
+<div class="card shadow-sm mb-4 no-print">
+    <div class="card-header"><h5 class="mb-0"><i class="bi bi-plus-circle-fill"></i> Ajouter une ligne au budget</h5></div>
+    <div class="card-body">
+        <form action="{{ url_for('ajouter_item_budget') }}" method="post" class="row g-3 align-items-end">
+            <input type="hidden" name="voyage_id" value="{{ voyage.id }}">
+            <div class="col-md-3">
+                <label class="form-label">Type</label>
+                <select name="type" class="form-select" required>
+                    <option value="depense">Dépense</option>
+                    <option value="recette">Recette</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Catégorie</label>
+                <select name="categorie_id" class="form-select" required>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Description</label>
+                <input type="text" name="description" class="form-control" required>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Montant (€)</label>
+                <input type="number" step="0.01" name="montant" class="form-control" required>
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary w-100">Ajouter</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

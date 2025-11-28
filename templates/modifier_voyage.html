@@ -25,6 +25,14 @@
                         <label for="nb_participants_attendu" class="form-label">Nombre de participants attendus</label>
                         <input type="number" class="form-control" id="nb_participants_attendu" name="nb_participants_attendu" value="{{ voyage.nb_participants_attendu }}" required>
                     </div>
+                    <div class="mb-3">
+                        <label for="nb_accompagnateurs" class="form-label">Nombre d'accompagnateurs</label>
+                        <input type="number" class="form-control" id="nb_accompagnateurs" name="nb_accompagnateurs" value="{{ voyage.nb_accompagnateurs }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="duree_sejour_nuits" class="form-label">Durée du séjour (en nuits)</label>
+                        <input type="number" class="form-control" id="duree_sejour_nuits" name="duree_sejour_nuits" value="{{ voyage.duree_sejour_nuits }}" required>
+                    </div>
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary"><i class="bi bi-save-fill"></i> Enregistrer les modifications</button>
                         <a href="{{ url_for('voyage_details', voyage_id=voyage.id) }}" class="btn btn-secondary"><i class="bi bi-x-circle"></i> Annuler</a>
