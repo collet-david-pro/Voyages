@@ -72,10 +72,58 @@ jobs:
         draft: false
         prerelease: false
 
-    - name: Upload build to GitHub Release
-      uses: actions/upload-release-asset@v1
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: dist/GestionVoyages.exe
-        asset_name: GestionVoyages-${{ github.ref_name }}.exe
-        asset_content_type: application/octet-stream
+    - name: Upload build to GitHub Release (robust)
+      # Use bash so curl works reliably. We'll first try GITHUB_TOKEN (default),
+      # then fall back to a personal access token stored in secrets.RELEASE_PAT
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        UPLOAD_URL: ${{ steps.create_release.outputs.upload_url }}
+        ASSET_PATH: dist/GestionVoyages.exe
+        ASSET_NAME: "GestionVoyages-${{ github.ref_name }}.exe"
+      run: |
+        set -euo pipefail
+        if [ ! -f "$ASSET_PATH" ]; then
+          echo "Asset not found: $ASSET_PATH" >&2
+          exit 1
+        fi
+
+        # Helper to try a token
+        try_upload() {
+          token="$1"
+          echo "Uploading $ASSET_PATH as $ASSET_NAME using token (masked)..."
+          status=$(curl -sS -o /dev/null -w "%{http_code}" -X POST \
+            -H "Authorization: token $token" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @"$ASSET_PATH" "${UPLOAD_URL}?name=${ASSET_NAME}")
+          echo "HTTP status: $status"
+          return $status
+        }
+
+        # Try with built-in GITHUB_TOKEN
+        set +e
+        status=$(curl -sS -o /dev/null -w "%{http_code}" -X POST -H "Authorization: token ${GITHUB_TOKEN}" -H "Content-Type: application/octet-stream" --data-binary @"${ASSET_PATH}" "${UPLOAD_URL}?name=${ASSET_NAME}") || true
+        set -e
+        if [ "$status" = "201" ]; then
+          echo "Upload succeeded using GITHUB_TOKEN"
+          exit 0
+        fi
+
+        echo "Upload with GITHUB_TOKEN failed (status=$status)"
+        RELEASE_PAT="${{ secrets.RELEASE_PAT }}"
+        if [ -n "${RELEASE_PAT:-}" ]; then
+          echo "Attempting upload with RELEASE_PAT..."
+          set +e
+          status2=$(curl -sS -o /dev/null -w "%{http_code}" -X POST -H "Authorization: token ${RELEASE_PAT}" -H "Content-Type: application/octet-stream" --data-binary @"${ASSET_PATH}" "${UPLOAD_URL}?name=${ASSET_NAME}") || true
+          set -e
+          if [ "$status2" = "201" ]; then
+            echo "Upload succeeded using RELEASE_PAT"
+            exit 0
+          else
+            echo "Upload with RELEASE_PAT failed (status=$status2)" >&2
+            exit 1
+          fi
+        else
+          echo "No RELEASE_PAT provided and GITHUB_TOKEN upload failed. Please set secrets.RELEASE_PAT or enable repo workflow write permissions." >&2
+          exit 1
+        fi
