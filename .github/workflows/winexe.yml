@@ -28,6 +28,8 @@ jobs:
         pip install pyinstaller==5.*
 
     - name: Build with PyInstaller
+      # Run the Python heredoc using bash so the <<'PY' heredoc syntax is supported
+      shell: bash
       # Use a short Python snippet that will automatically add templates/uploads and
       # also include fonts/ if present. This keeps the exe self-contained for the app
       # (templates + uploads + optional fonts).
