@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="mb-1"><i class="bi bi-airplane-fill"></i> Voyage : {{ voyage.destination }}</h1>
+    <span class="badge bg-success fs-5">Prix par élève : {{ voyage.prix_eleve|format_currency }} €</span>
+    <div class="row mt-3">
+        <div class="col-md-4">
+            <div class="card text-center h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-people-fill"></i> Participants</h5>
+                    <p class="card-text fs-2 fw-bold">{{ nb_inscrits }} / {{ voyage.nb_participants_attendu }}</p>
+                    <small class="text-muted">Inscrits / Attendus</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-graph-up-arrow"></i> Finances</h5>
+                    <p class="mb-1">Total perçu : <strong class="text-success">{{ total_percu_voyage|format_currency }} €</strong></p>
+                    <p class="mb-2">Montant total attendu : <strong class="text-primary">{{ montant_total_attendu|format_currency }} €</strong></p>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ (total_percu_voyage / montant_total_attendu * 100) if montant_total_attendu > 0 else 0 }}%;" aria-valuenow="{{ total_percu_voyage }}" aria-valuemin="0" aria-valuemax="{{ montant_total_attendu }}">{{ "%.0f"|format((total_percu_voyage / montant_total_attendu * 100) if montant_total_attendu > 0 else 0) if montant_total_attendu > 0 else '0' }}%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<ul class="nav nav-tabs nav-fill mb-4 no-print" id="voyageTab" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('voyage_details', voyage_id=voyage.id) }}">
+            <i class="bi bi-people-fill"></i> Participants
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link active" href="{{ url_for('fonds_sociaux', voyage_id=voyage.id) }}">
+            <i class="bi bi-piggy-bank-fill"></i> Fonds Sociaux
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('voyage_budget', voyage_id=voyage.id) }}">
+            <i class="bi bi-calculator-fill"></i> Budget
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('voyage_details', voyage_id=voyage.id, tab='documents') }}">
+            <i class="bi bi-folder-fill"></i> Documents
+        </a>
+    </li>
+</ul>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-plus-circle-fill"></i> Ajouter une demande</h5>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('ajouter_demande_fonds_sociaux') }}" method="post">
+            <input type="hidden" name="voyage_id" value="{{ voyage.id }}">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="participant_id" class="form-label">Participant</label>
+                    <select class="form-select" id="participant_id" name="participant_id" required>
+                        <option value="">Sélectionner un participant</option>
+                        {% for p in participants %}
+                        <option value="{{ p.id }}">{{ p.prenom }} {{ p.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="montant_demande" class="form-label">Montant Demandé (€)</label>
+                    <input type="number" step="0.01" class="form-control" id="montant_demande" name="montant_demande" required>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">Enregistrer la demande</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-list-ul"></i> Demandes en cours</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped table-hover mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Participant</th>
+                    <th>Montant Demandé</th>
+                    <th>Montant Accordé (€)</th>
+                    <th>Date Commission</th>
+                    <th>Décision</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for demande in demandes_en_cours %}
+                <form action="{{ url_for('valider_demande_fonds_sociaux', demande_id=demande.id) }}" method="post">
+                <input type="hidden" name="voyage_id" value="{{ voyage.id }}">
+                <tr class="align-middle">
+                    <td>{{ demande.prenom }} {{ demande.nom }}</td>
+                    <td>{{ demande.montant_demande|format_currency }} €</td>
+                    <td>
+                        <input type="number" step="0.01" class="form-control" name="montant_accorde" value="{{ demande.montant_demande|format_currency }}">
+                    </td>
+                    <td>
+                        <input type="date" class="form-control" name="date_commission" value="{{ date_du_jour }}">
+                    </td>
+                    <td>
+                        <select class="form-select" name="statut" required>
+                            <option value="VALIDE">Valider</option>
+                            <option value="REFUSE">Refuser</option>
+                        </select>
+                    </td>
+                    <td>
+                        <button type="submit" class="btn btn-sm btn-success">Traiter</button>
+                    </td>
+                </tr>
+                </form>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted p-4">Aucune nouvelle demande de fonds sociaux.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-check-circle-fill"></i> Demandes traitées</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped table-hover mb-0">
+            <thead class="table-secondary">
+                <tr>
+                    <th>Participant</th>
+                    <th>Montant Demandé</th>
+                    <th>Montant Accordé</th>
+                    <th>Date Commission</th>
+                    <th>Statut</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for demande in demandes_traitees %}
+                <tr>
+                    <td>{{ demande.prenom }} {{ demande.nom }}</td>
+                    <td>{{ demande.montant_demande|format_currency }} €</td>
+                    <td><span class="badge bg-{{ 'success' if demande.statut == 'VALIDE' else 'danger' }}">{{ demande.montant_accorde|format_currency if demande.montant_accorde else '0.00' }} €</span></td>
+                    <td>{{ demande.date_commission.strftime('%d/%m/%Y') if demande.date_commission else 'N/A' }}</td>
+                    <td>{{ demande.statut }}</td>
+                    <td>
+                        <a href="{{ url_for('generer_attestation_fs_pdf', demande_id=demande.id) }}" class="btn btn-sm btn-info" target="_blank">
+                            <i class="bi bi-file-earmark-pdf"></i> Attestation
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted p-4">Aucune demande traitée.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

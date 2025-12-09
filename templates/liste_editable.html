@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1 class="mb-3"><i class="bi bi-pencil-square"></i> Éditer la liste des inscrits — {{ voyage.destination }}</h1>
+
+<form action="{{ url_for('generer_liste_editable_pdf', voyage_id=voyage.id) }}" method="post">
+    <div class="card shadow-sm mb-4">
+        <div class="card-body table-responsive">
+            <table class="table table-sm table-bordered align-middle">
+                <thead class="table-light text-center">
+                    <tr>
+                        <th>Nom</th>
+                        <th>Prénom</th>
+                        <th>Classe</th>
+                        <th>Montant initial (€)</th>
+                        <th>Remise (€)</th>
+                        <th>Montant payé (€)</th>
+                        <th>Reste à payer (€)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for p in participants %}
+                    <tr>
+                        <td>{{ p.nom }}</td>
+                        <td>{{ p.prenom }}</td>
+                        <td class="text-center">{{ p.classe }}</td>
+                        <td class="text-center">{{ (p.montant_initial/100) | round(2) }}</td>
+                        <td class="text-center">{{ (p.montant_remise/100) | round(2) }}</td>
+                        <td class="text-center">
+                            <input type="hidden" name="participant_id[]" value="{{ p.id }}">
+                            <!-- Keep initial / remise values as data attributes to allow client-side recalculation (values in cents) -->
+                            <input type="number" name="total_paye[]" step="0.01" min="0" value="{{ (p.total_paye / 100) | round(2) }}" class="form-control form-control-sm text-center edit-paid" data-initial="{{ p.montant_initial }}" data-remise="{{ p.montant_remise }}">
+                        </td>
+                        <td class="text-center">
+                            <input type="text" name="reste_a_payer_display[]" value="{{ (p.reste_a_payer / 100) | round(2) }}" class="form-control form-control-sm text-center" readonly>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mb-4">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-file-earmark-pdf"></i> Générer PDF</button>
+        <a href="{{ url_for('voyage_details', voyage_id=voyage.id) }}" class="btn btn-secondary">Annuler</a>
+    </div>
+</form>
+
+<script>
+// Compute reste when paid amount edits
+document.querySelectorAll('.edit-paid').forEach(function(inp){
+    inp.addEventListener('input', function(){
+        var row = inp.closest('tr');
+        var paid = parseFloat(inp.value) || 0.0;
+        var initialCents = parseInt(inp.getAttribute('data-initial') || '0', 10);
+        var remiseCents = parseInt(inp.getAttribute('data-remise') || '0', 10);
+        var due = Math.max(0, (initialCents - remiseCents)/100.0 - paid);
+        var display = row.querySelector('input[name="reste_a_payer_display[]"]');
+        if(display){ display.value = due.toFixed(2); }
+    });
+});
+</script>
+
+{% endblock %}

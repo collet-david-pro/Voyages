@@ -2,22 +2,60 @@
 
 {% block content %}
 <div class="mb-4">
-    <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <h1 class="mb-0"><i class="bi bi-wallet2"></i> Paiements de {{ eleve.prenom }} {{ eleve.nom }}</h1>
-            <p class="text-muted mb-0">Voyage : {{ voyage.destination }}</p>
+    <h1 class="mb-1"><i class="bi bi-airplane-fill"></i> Voyage : {{ voyage.destination }}</h1>
+    <span class="badge bg-success fs-5">Prix par élève : {{ voyage.prix_eleve|format_currency }} €</span>
+    <div class="row mt-3">
+        <div class="col-md-4">
+            <div class="card text-center h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-people-fill"></i> Participants</h5>
+                    <p class="card-text fs-2 fw-bold">{{ nb_inscrits }} / {{ voyage.nb_participants_attendu }}</p>
+                    <small class="text-muted">Inscrits / Attendus</small>
+                </div>
+            </div>
         </div>
-        <div>
-            <a href="{{ url_for('generer_attestation_pdf', eleve_id=eleve.id) }}" class="btn btn-info"><i class="bi bi-file-earmark-pdf-fill"></i> Générer l'attestation</a>
-            <a href="{{ url_for('voyage_details', voyage_id=voyage.id) }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Retour au voyage</a>
+        <div class="col-md-8">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-graph-up-arrow"></i> Finances</h5>
+                    <p class="mb-1">Total perçu : <strong class="text-success">{{ total_percu_voyage|format_currency }} €</strong></p>
+                    <p class="mb-2">Montant total attendu : <strong class="text-primary">{{ montant_total_attendu|format_currency }} €</strong></p>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ (total_percu_voyage / montant_total_attendu * 100) if montant_total_attendu > 0 else 0 }}%;" aria-valuenow="{{ total_percu_voyage }}" aria-valuemin="0" aria-valuemax="{{ montant_total_attendu }}">{{ "%.0f"|format((total_percu_voyage / montant_total_attendu * 100) if montant_total_attendu > 0 else 0) if montant_total_attendu > 0 else '0' }}%</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
+<ul class="nav nav-tabs nav-fill mb-4 no-print" id="voyageTab" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link active" href="{{ url_for('voyage_details', voyage_id=voyage.id) }}">
+            <i class="bi bi-people-fill"></i> Participants
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('fonds_sociaux', voyage_id=voyage.id) }}">
+            <i class="bi bi-piggy-bank-fill"></i> Fonds Sociaux
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('voyage_budget', voyage_id=voyage.id) }}">
+            <i class="bi bi-calculator-fill"></i> Budget
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('voyage_details', voyage_id=voyage.id, tab='documents') }}">
+            <i class="bi bi-folder-fill"></i> Documents
+        </a>
+    </li>
+</ul>
+
 <div class="card mb-4 shadow-sm">
     <div class="card-header"><h5 class="mb-0">Situation financière</h5></div>
     <div class="card-body">
-        <p>Prix du voyage : {{ "%.2f"|format(voyage.prix_eleve) }} €</p>
+        <p>Prix du voyage : {{ "%.2f"|format(voyage.prix_eleve / 100.0) }} €</p>
         <p>Total payé : <strong class="text-success">{{ "%.2f"|format(total_paye) }} €</strong></p>
         <p>Reste à payer : <strong class="text-danger">{{ "%.2f"|format(reste_a_payer) }} €</strong></p>
     </div>
@@ -51,7 +89,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="5" class="text-center text-muted p-4">Aucun paiement enregistré pour cet élève.</td>
+                <td colspan="5" class="text-center text-muted p-4">Aucun paiement enregistré pour ce participant.</td>
             </tr>
             {% endfor %}
         </tbody>

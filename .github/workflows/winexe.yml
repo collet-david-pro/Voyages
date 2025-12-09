@@ -1,8 +1,8 @@
-name: Build Windows Executable
+name: Build Windows Executable (release)
 
 on:
-  push:
-    branches: [ main ]
+  release:
+    types: [published]
 
 jobs:
   build:
@@ -13,24 +13,48 @@ jobs:
       uses: actions/checkout@v4 # Mise à jour vers v4
 
     - name: Set up Python
-      uses: actions/setup-python@v5 # Mise à jour vers v5 (plus rapide et fiable)
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.9'
-        cache: 'pip' # Active le cache de pip automatiquement pour accélérer le build
+        # Use a broadly available release for PyInstaller builds on windows-latest
+        python-version: '3.11'
+        cache: 'pip'
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pyinstaller
+        pip install pyinstaller==5.*
 
     - name: Build with PyInstaller
-      # Ajout de --clean et --noconfirm
+      # Use a short Python snippet that will automatically add templates/uploads and
+      # also include fonts/ if present. This keeps the exe self-contained for the app
+      # (templates + uploads + optional fonts).
       run: |
-        pyinstaller --noconfirm --clean --name "GestionVoyages" --onefile --windowed --add-data "templates;templates" --add-data "schema.sql;." app.py
+        python - <<'PY'
+        import os, PyInstaller.__main__ as P
+        data = []
+        for d in ('templates','uploads','fonts'):
+            if os.path.exists(d):
+                data += ['--add-data', f"{d}{os.pathsep}{d}"]
+        args = ['--noconfirm','--clean','--name','GestionVoyages','--onefile','--windowed'] + data + ['app.py']
+        print('PyInstaller args:', args)
+        P.run(args)
+        PY
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4 # Mise à jour vers v4
+    - name: Verify build output
+      shell: pwsh
+      run: |
+        Write-Host 'Checking for dist/GestionVoyages.exe'
+        if (-Not (Test-Path -Path .\dist\GestionVoyages.exe)) {
+          Write-Host 'Build failed: dist/GestionVoyages.exe not found' ; exit 1
+        }
+        Write-Host 'Build OK - listing dist:'
+        Get-ChildItem -Path .\dist\
+
+    - name: Upload build to GitHub Release
+      uses: actions/upload-release-asset@v1
       with:
-        name: GestionVoyages-Windows
-        path: dist/GestionVoyages.exe
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: dist/GestionVoyages.exe
+        asset_name: GestionVoyages-${{ github.event.release.tag_name }}.exe
+        asset_content_type: application/octet-stream

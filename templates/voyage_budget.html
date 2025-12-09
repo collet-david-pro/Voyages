@@ -2,14 +2,30 @@
 
 {% block content %}
 <div class="mb-4">
-    <div class="d-flex justify-content-between align-items-start">
-        <div>
-            <h1 class="mb-1"><i class="bi bi-airplane-fill"></i> Voyage : {{ voyage.destination }}</h1>
-            <span class="badge bg-success fs-5">Prix par élève : {{ "%.2f"|format(voyage.prix_eleve) }} €</span>
+    <h1 class="mb-1"><i class="bi bi-airplane-fill"></i> Voyage : {{ voyage.destination }}</h1>
+    <span class="badge bg-success fs-5">Prix par élève : {{ voyage.prix_eleve|format_currency }} €</span>
+    <div class="row mt-3">
+        <div class="col-md-4">
+            <div class="card text-center h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-people-fill"></i> Participants</h5>
+                    <p class="card-text fs-2 fw-bold">{{ nb_inscrits }} / {{ voyage.nb_participants_attendu }}</p>
+                    <small class="text-muted">Inscrits / Attendus</small>
+                </div>
+            </div>
         </div>
-        <a href="{{ url_for('modifier_voyage', voyage_id=voyage.id) }}" class="btn btn-outline-secondary no-print">
-            <i class="bi bi-pencil-square"></i> Modifier le voyage
-        </a>
+        <div class="col-md-8">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-graph-up-arrow"></i> Finances</h5>
+                    <p class="mb-1">Total perçu : <strong class="text-success">{{ total_percu_voyage|format_currency }} €</strong></p>
+                    <p class="mb-2">Montant total attendu : <strong class="text-primary">{{ montant_total_attendu|format_currency }} €</strong></p>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ (total_percu_voyage / montant_total_attendu * 100) if montant_total_attendu > 0 else 0 }}%;" aria-valuenow="{{ total_percu_voyage }}" aria-valuemin="0" aria-valuemax="{{ montant_total_attendu }}">{{ "%.0f"|format((total_percu_voyage / montant_total_attendu * 100) if montant_total_attendu > 0 else 0) if montant_total_attendu > 0 else '0' }}%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -18,6 +34,11 @@
     <li class="nav-item">
         <a class="nav-link" href="{{ url_for('voyage_details', voyage_id=voyage.id) }}">
             <i class="bi bi-people-fill"></i> Participants
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('fonds_sociaux', voyage_id=voyage.id) }}">
+            <i class="bi bi-piggy-bank-fill"></i> Fonds Sociaux
         </a>
     </li>
     <li class="nav-item">
@@ -37,7 +58,7 @@
     <!-- Colonne Dépenses -->
     <div class="col-md-6">
         <div class="card shadow-sm mb-4">
-            <div class="card-header bg-danger text-white"><h5 class="mb-0"><i class="bi bi-arrow-down-circle-fill"></i> Dépenses ({{ "%.2f"|format(total_depenses) }} €)</h5></div>
+            <div class="card-header bg-danger text-white"><h5 class="mb-0"><i class="bi bi-arrow-down-circle-fill"></i> Dépenses ({{ total_depenses|format_currency }} €)</h5></div>
             <ul class="list-group list-group-flush">
                 {% for item in depenses %}
                 <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -46,7 +67,7 @@
                         <small class="text-muted d-block">{{ item.categorie_nom }}</small>
                     </div>
                     <div>
-                        <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill me-2">{{ "%.2f"|format(item.montant) }} €</span>
+                        <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill me-2">{{ item.montant|format_currency }} €</span>
                         <form action="{{ url_for('supprimer_item_budget', item_id=item.id) }}" method="post" class="d-inline">
                             <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer cette ligne ?');"><i class="bi bi-trash"></i></button>
                         </form>
@@ -62,7 +83,7 @@
     <!-- Colonne Recettes -->
     <div class="col-md-6">
         <div class="card shadow-sm mb-4">
-            <div class="card-header bg-success text-white"><h5 class="mb-0"><i class="bi bi-arrow-up-circle-fill"></i> Recettes ({{ "%.2f"|format(total_recettes) }} €)</h5></div>
+            <div class="card-header bg-success text-white"><h5 class="mb-0"><i class="bi bi-arrow-up-circle-fill"></i> Recettes ({{ total_recettes|format_currency }} €)</h5></div>
             <ul class="list-group list-group-flush">
                 {% for item in recettes %}
                 <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -71,7 +92,7 @@
                         <small class="text-muted d-block">{{ item.categorie_nom }}</small>
                     </div>
                     <div>
-                        <span class="badge bg-success-subtle text-success-emphasis rounded-pill me-2">{{ "%.2f"|format(item.montant) }} €</span>
+                        <span class="badge bg-success-subtle text-success-emphasis rounded-pill me-2">{{ item.montant|format_currency }} €</span>
                         <form action="{{ url_for('supprimer_item_budget', item_id=item.id) }}" method="post" class="d-inline">
                             <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer cette ligne ?');"><i class="bi bi-trash"></i></button>
                         </form>
@@ -90,16 +111,16 @@
     <div class="card-body text-center">
         <h5 class="card-title">Solde prévisionnel</h5>
         {% if solde >= 0 %}
-            <p class="fs-2 fw-bold text-success">+ {{ "%.2f"|format(solde) }} €</p>
+            <p class="fs-2 fw-bold text-success">+ {{ solde|format_currency }} €</p>
         {% else %}
-            <p class="fs-2 fw-bold text-danger">{{ "%.2f"|format(solde) }} €</p>
+            <p class="fs-2 fw-bold text-danger">{{ solde|format_currency }} €</p>
         {% endif %}
         <a href="{{ url_for('generer_budget_pdf', voyage_id=voyage.id) }}" class="btn btn-danger"><i class="bi bi-file-earmark-pdf-fill"></i> Exporter le budget détaillé en PDF</a>
     </div>
 </div>
 
-<!-- Section Ajouter une ligne budgétaire -->
-<div class="card shadow-sm mb-4 no-print">
+<!-- Formulaire d'ajout -->
+<div class="card shadow-sm">
     <div class="card-header"><h5 class="mb-0"><i class="bi bi-plus-circle-fill"></i> Ajouter une ligne au budget</h5></div>
     <div class="card-body">
         <form action="{{ url_for('ajouter_item_budget') }}" method="post" class="row g-3 align-items-end">

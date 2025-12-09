@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-header bg-warning text-dark"><h5 class="mb-0">{{ title }}</h5></div>
+  <div class="card-body">
+    <p class="lead">{{ message }}</p>
+    <a href="{{ request.referrer or url_for('index') }}" class="btn btn-secondary">Retour</a>
+  </div>
+</div>
+{% endblock %}

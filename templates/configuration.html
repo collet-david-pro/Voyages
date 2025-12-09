@@ -1,4 +1,3 @@
-
 {% extends 'base.html' %}
 
 {% block content %}
@@ -7,26 +6,57 @@
 <div class="row">
     <!-- Colonne pour les paramètres généraux -->
     <div class="col-md-8">
-        <form action="{{ url_for('enregistrer_parametres') }}" method="post">
+        <form action="{{ url_for('enregistrer_config') }}" method="post" enctype="multipart/form-data">
             <!-- Paramètres de l'établissement -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header"><h5 class="mb-0"><i class="bi bi-building"></i> Informations de l'établissement</h5></div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label for="nom_college" class="form-label">Nom de l'établissement</label>
-                        <input type="text" class="form-control" id="nom_college" name="nom_college" value="{{ parametres.get('nom_college', '') }}">
+                        <label for="nom_etablissement" class="form-label">Nom de l'établissement</label>
+                        <input type="text" class="form-control" id="nom_etablissement" name="nom_etablissement" value="{{ config.nom_etablissement or '' }}">
                     </div>
                     <div class="mb-3">
-                        <label for="ville_college" class="form-label">Ville de l'établissement</label>
-                        <input type="text" class="form-control" id="ville_college" name="ville_college" value="{{ parametres.get('ville_college', '') }}">
+                        <label for="adresse" class="form-label">Adresse</label>
+                        <input type="text" class="form-control" id="adresse" name="adresse" value="{{ config.adresse or '' }}">
                     </div>
                     <div class="mb-3">
-                        <label for="nom_principal" class="form-label">Nom du Principal</label>
-                        <input type="text" class="form-control" id="nom_principal" name="nom_principal" value="{{ parametres.get('nom_principal', '') }}">
+                        <label for="ville_signature" class="form-label">Ville de signature</label>
+                        <input type="text" class="form-control" id="ville_signature" name="ville_signature" value="{{ config.ville_signature or '' }}">
                     </div>
                     <div class="mb-3">
-                        <label for="nom_secretaire_general" class="form-label">Nom du Secrétaire Général / Gestionnaire</label>
-                        <input type="text" class="form-control" id="nom_secretaire_general" name="nom_secretaire_general" value="{{ parametres.get('nom_secretaire_general', '') }}">
+                        <label for="ordonnateur_nom" class="form-label">Nom de l'Ordonnateur</label>
+                        <input type="text" class="form-control" id="ordonnateur_nom" name="ordonnateur_nom" value="{{ config.ordonnateur_nom or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="secretaire_general_nom" class="form-label">Nom du Secrétaire Général / Gestionnaire</label>
+                        <input type="text" class="form-control" id="secretaire_general_nom" name="secretaire_general_nom" value="{{ config.secretaire_general_nom or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Logo de l'établissement (PNG / JPG) — affichage sur PDF</label>
+                        {% if config.logo_path %}
+                        <div class="mb-2">
+                            <img src="{{ url_for('telecharger_document', filename=config.logo_path) }}" alt="Logo" style="max-width:100px; height:auto;"/>
+                        </div>
+                        {% endif %}
+                        <input type="file" name="logo" accept="image/png,image/jpeg" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Signature / image de l'ordonnateur (PNG / JPG) — 64x64 px affiché</label>
+                        {% if config.ordonnateur_image %}
+                        <div class="mb-2">
+                            <img src="{{ url_for('telecharger_document', filename=config.ordonnateur_image) }}" alt="Ordonnateur" style="width:64px; height:64px; object-fit:cover;"/>
+                        </div>
+                        {% endif %}
+                        <input type="file" name="ordonnateur_image" accept="image/png,image/jpeg" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Signature / image du secrétaire (PNG / JPG) — 64x64 px affiché</label>
+                        {% if config.secretaire_image %}
+                        <div class="mb-2">
+                            <img src="{{ url_for('telecharger_document', filename=config.secretaire_image) }}" alt="Secretaire" style="width:64px; height:64px; object-fit:cover;"/>
+                        </div>
+                        {% endif %}
+                        <input type="file" name="secretaire_image" accept="image/png,image/jpeg" class="form-control">
                     </div>
                 </div>
             </div>
@@ -37,17 +67,34 @@
                 <div class="card-body">
                     <div class="mb-3">
                         <label for="texte_attestation" class="form-label">Personnalisez le texte qui apparaîtra sur l'attestation.</label>
-                        <textarea class="form-control" id="texte_attestation" name="texte_attestation" rows="4">{{ parametres.get('texte_attestation', '') }}</textarea>
-                        <div class="form-text">Utilisez [Nom du responsable] pour insérer un champ à remplir manuellement sur le PDF.</div>
+                        <textarea class="form-control" id="texte_attestation" name="texte_attestation" rows="4">{{ config.texte_attestation or '' }}</textarea>
+                        <!-- Instructional note removed as requested -->
                     </div>
                 </div>
             </div>
 
             <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-save-fill"></i> Enregistrer tous les paramètres</button>
         </form>
+        
+        <hr class="my-4">
+
+        <div class="card border-danger shadow-sm mb-4">
+            <div class="card-header bg-danger text-white"><h5 class="mb-0"><i class="bi bi-exclamation-triangle-fill"></i> Zone de Danger</h5></div>
+            <div class="card-body">
+                <p>Ces actions peuvent entraîner une perte de données irréversible.</p>
+                <div class="d-flex gap-2">
+                    <form action="{{ url_for('reset_db_route') }}" method="post" onsubmit="return confirm('Êtes-vous absolument sûr de vouloir supprimer TOUTES les données et recommencer à zéro ? Cette action est irréversible.');">
+                        <button type="submit" class="btn btn-danger"><i class="bi bi-trash3-fill"></i> Réinitialiser la base de données</button>
+                    </form>
+                    <form action="{{ url_for('demo_data_route') }}" method="post" onsubmit="return confirm('Ceci va ajouter des voyages, participants et paiements de démonstration. Ne le faites pas si vous avez déjà des données réelles. Continuer ?');">
+                        <button type="submit" class="btn btn-warning"><i class="bi bi-magic"></i> Injecter des données de démo</button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Colonne pour les modes de paiement -->
+    <!-- Colonne pour les modes de paiement et catégories -->
     <div class="col-md-4 d-flex flex-column">
         <!-- Gérer les modes de paiement -->
         <div class="card shadow-sm mb-4">
@@ -95,5 +142,7 @@
             </div>
         </div>
     </div>
+
+    <!-- Section sauvegardes retirée — plus de sauvegardes côté UI -->
 </div>
 {% endblock %}

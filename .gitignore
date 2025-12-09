@@ -5,6 +5,9 @@ venv/
 *.db
 *.sqlite3
 
-# Fichiers temporaires Python
-__pycache__/
-*.pyc
+Principe.md
+TODO.md
+
+# Some macOS tools create a directory named "DS Store" (space) — ignore it too
+
+.DS_Store

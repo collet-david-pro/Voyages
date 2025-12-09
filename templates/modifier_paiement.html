@@ -1,14 +1,14 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <h1>Modifier un paiement pour {{ eleve.prenom }} {{ eleve.nom }}</h1>
+    <h1>Modifier un paiement pour {{ participant.prenom }} {{ participant.nom }}</h1>
 
     <div class="card shadow-sm">
         <div class="card-body">
             <form method="post">
                 <div class="mb-3">
                     <label for="montant" class="form-label">Montant (€)</label>
-                    <input type="number" step="0.01" class="form-control" id="montant" name="montant" value="{{ "%.2f"|format(paiement.montant) }}" required>
+                    <input type="number" step="0.01" class="form-control" id="montant" name="montant" value="{{ paiement.montant|format_currency }}" required>
                 </div>
                 <div class="mb-3">
                     <label for="date" class="form-label">Date du paiement</label>
@@ -29,7 +29,7 @@
                     <input type="text" class="form-control" id="reference" name="reference" value="{{ paiement.reference or '' }}">
                 </div>
                 <div class="d-flex justify-content-end">
-                    <a href="{{ url_for('eleve_paiements', eleve_id=eleve.id) }}" class="btn btn-secondary me-2">Annuler</a>
+                    <a href="{{ url_for('participant_paiements', participant_id=participant.id) }}" class="btn btn-secondary me-2">Annuler</a>
                     <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
                 </div>
             </form>

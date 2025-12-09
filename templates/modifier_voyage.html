@@ -19,7 +19,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="prix_eleve" class="form-label">Prix par élève (€)</label>
-                        <input type="number" step="0.01" class="form-control" id="prix_eleve" name="prix_eleve" value="{{ voyage.prix_eleve }}" required>
+                        <input type="number" step="0.01" class="form-control" name="prix_eleve" value="{{ voyage.prix_eleve|format_currency }}" required>
                     </div>
                     <div class="mb-3">
                         <label for="nb_participants_attendu" class="form-label">Nombre de participants attendus</label>

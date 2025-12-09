@@ -1,3 +1,6 @@
-Flask==2.1.2
-fpdf2==2.5.7
-Werkzeug==2.2.3
+flask
+werkzeug
+fpdf2
+Pillow
+Flask
+fpdf2
