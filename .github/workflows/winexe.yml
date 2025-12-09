@@ -1,5 +1,10 @@
 name: Build Windows Executable (auto-release on tag push)
 
+# GitHub Actions needs write permissions to repository contents to create Releases
+# and upload assets using the GITHUB_TOKEN. Request write permission explicitly.
+permissions:
+  contents: write
+
 on:
   push:
     # Trigger when a tag is pushed; uses common 'v*' pattern (v1.2.3)
