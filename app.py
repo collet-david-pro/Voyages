@@ -2293,45 +2293,89 @@ if __name__ == '__main__':
         os.makedirs(app.config['UPLOAD_FOLDER'])
     # Si pywebview est disponible, démarre Flask en thread et ouvre une fenêtre embarquée.
     if WEBVIEW_ENABLED:
-        import socket, time
+        import socket
+        import time
+        from werkzeug.serving import make_server
+
+        # Utiliser un objet pour stocker l'état partagé entre threads
+        class ServerState:
+            server = None
+            ready = False
+            error = None
+
+        state = ServerState()
 
         def run_server():
-            # Use use_reloader=False to avoid double execution of the server
             try:
-                logger.info('[server] Starting Flask server (thread) on 127.0.0.1:5001')
-                app.run(host='127.0.0.1', port=5001, debug=False, use_reloader=False)
+                logger.info('[server] Creating Flask server on 127.0.0.1:5001')
+                state.server = make_server('127.0.0.1', 5001, app, threaded=True)
+                logger.info('[server] Server created, marking as ready')
+                state.ready = True
+                logger.info('[server] Flask server starting serve_forever()')
+                state.server.serve_forever()
+                logger.info('[server] serve_forever() ended')
             except Exception as e:
                 logger.exception('[server] Exception while running Flask server:')
+                state.error = str(e)
+                state.ready = True  # Débloquer l'attente même en cas d'erreur
 
-        t = Thread(target=run_server, daemon=True)
+        # NE PAS utiliser daemon=True pour éviter que le thread soit tué prématurément
+        t = Thread(target=run_server)
         t.start()
 
-        # Wait for server to be reachable (simple TCP connect) before opening webview
-        def wait_for_server(host='127.0.0.1', port=5001, timeout=8.0, interval=0.25):
+        # Attendre que le serveur soit prêt
+        def wait_for_server(host='127.0.0.1', port=5001, timeout=15.0, interval=0.2):
+            logger.info(f'[startup] Waiting for server on {host}:{port}...')
             deadline = time.time() + timeout
             while time.time() < deadline:
-                try:
-                    with socket.create_connection((host, port), timeout=1):
-                        return True
-                except Exception:
-                    time.sleep(interval)
+                if state.ready:
+                    # Attendre un peu plus que le serveur soit vraiment prêt
+                    time.sleep(0.5)
+                    # Double-check avec une connexion TCP
+                    for _ in range(3):
+                        try:
+                            with socket.create_connection((host, port), timeout=2):
+                                logger.info('[startup] TCP connection successful')
+                                return True
+                        except Exception as e:
+                            logger.warning(f'[startup] TCP connect failed: {e}')
+                            time.sleep(0.3)
+                time.sleep(interval)
+            logger.error('[startup] Timeout waiting for server')
             return False
 
+        logger.info('[startup] Waiting for Flask server to be ready...')
         if wait_for_server():
             try:
-                logger.info('[server] Server is reachable; opening embedded window')
-                webview.create_window('Gestion Voyages Scolaires', 'http://127.0.0.1:5001', width=1200, height=800)
+                logger.info('[startup] Server is reachable; opening embedded window')
+                # Créer la fenêtre et démarrer webview
+                window = webview.create_window(
+                    'Gestion Voyages Scolaires',
+                    'http://127.0.0.1:5001',
+                    width=1200,
+                    height=800
+                )
+                logger.info('[startup] Window created, starting webview...')
                 webview.start()
+                logger.info('[startup] webview.start() returned (window closed)')
             except Exception as e:
                 logger.exception('[webview] Unable to create embedded window:')
                 print('[webview] Falling back to system browser')
                 webbrowser.open_new('http://127.0.0.1:5001/')
                 t.join()
         else:
-            logger.error('[server] Server did not become reachable in time; falling back to system browser')
-            # Try to fetch logs or at least notify
+            logger.error('[startup] Server did not become reachable in time')
+            if state.error:
+                logger.error(f'[startup] Server error: {state.error}')
+            # Fallback to system browser
             webbrowser.open_new('http://127.0.0.1:5001/')
             t.join()
+
+        # Arrêter proprement le serveur quand la fenêtre webview se ferme
+        if state.server:
+            logger.info('[shutdown] Shutting down Flask server')
+            state.server.shutdown()
+        t.join(timeout=2)
     else:
         # Lance le navigateur 1 seconde après le démarrage du serveur
         Timer(1, open_browser).start()
