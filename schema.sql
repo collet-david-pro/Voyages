@@ -79,9 +79,9 @@ CREATE TABLE IF NOT EXISTS config_etablissement (
 );
 
 -- Images et chemins (logo, signatures) stockés en chemin relatif uploads/...
-ALTER TABLE config_etablissement ADD COLUMN IF NOT EXISTS logo_path TEXT;
-ALTER TABLE config_etablissement ADD COLUMN IF NOT EXISTS ordonnateur_image TEXT;
-ALTER TABLE config_etablissement ADD COLUMN IF NOT EXISTS secretaire_image TEXT;
+ALTER TABLE config_etablissement ADD COLUMN logo_path TEXT;
+ALTER TABLE config_etablissement ADD COLUMN ordonnateur_image TEXT;
+ALTER TABLE config_etablissement ADD COLUMN secretaire_image TEXT;
 
 -- Insertion d'une ligne de configuration par défaut
 INSERT OR IGNORE INTO config_etablissement (id, nom_etablissement) VALUES (1, 'Nom du Collège');
