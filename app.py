@@ -4,7 +4,7 @@ import sqlite3
 import os
 import sys
 from datetime import datetime, date
-from flask import Flask, render_template, request, redirect, url_for, g, abort, make_response, flash
+from flask import Flask, render_template, request, redirect, url_for, g, abort, make_response, flash, jsonify
 from flask import send_from_directory
 import webbrowser
 import math
@@ -20,11 +20,19 @@ try:
 except Exception:
     webview = None
     WEBVIEW_AVAILABLE = False
+
+# Allow disabling embedded webview via environment variable
+USE_WEBVIEW = os.environ.get('USE_WEBVIEW', '1') not in ('0', 'false', 'False')
+WEBVIEW_ENABLED = WEBVIEW_AVAILABLE and USE_WEBVIEW
 from threading import Timer, Thread
 import random
+import logging
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET', 'dev-secret-please-change')
+
+# logging is configured after basedir is defined further down
+logger = logging.getLogger(__name__)
 
 # --- Fonctions et classes utilitaires pour la génération de PDF ---
 def encode_str(s):
@@ -376,6 +384,20 @@ else:
 app.config['DATABASE'] = os.path.join(basedir, 'voyages_scolaires.db')
 app.config['UPLOAD_FOLDER'] = os.path.join(basedir, 'uploads')
 
+# Setup logging now that basedir is available
+LOG_DIR = os.path.join(basedir, 'logs')
+os.makedirs(LOG_DIR, exist_ok=True)
+LOG_FILE = os.path.join(LOG_DIR, 'app.log')
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s %(levelname)s %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(LOG_FILE, encoding='utf-8')
+    ]
+)
+logger = logging.getLogger(__name__)
+
 # -------------------------------------------
 #  Gestion de la base de données
 # -------------------------------------------
@@ -487,6 +509,12 @@ def index():
         voyages.append(voyage_dict)
 
     return render_template('index.html', voyages=voyages)
+
+
+@app.route('/health')
+def health():
+    """Health check endpoint used by the embedded webview startup waiter."""
+    return jsonify({'status': 'ok'})
 
 @app.route('/voyage/<int:voyage_id>/documents/ajouter', methods=['POST'])
 def ajouter_document(voyage_id):
@@ -2264,16 +2292,16 @@ if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
     # Si pywebview est disponible, démarre Flask en thread et ouvre une fenêtre embarquée.
-    if WEBVIEW_AVAILABLE:
+    if WEBVIEW_ENABLED:
         import socket, time
 
         def run_server():
             # Use use_reloader=False to avoid double execution of the server
             try:
-                print('[server] Starting Flask server (thread) on 127.0.0.1:5001')
+                logger.info('[server] Starting Flask server (thread) on 127.0.0.1:5001')
                 app.run(host='127.0.0.1', port=5001, debug=False, use_reloader=False)
             except Exception as e:
-                print('[server] Exception while running Flask server:', e)
+                logger.exception('[server] Exception while running Flask server:')
 
         t = Thread(target=run_server, daemon=True)
         t.start()
@@ -2291,16 +2319,16 @@ if __name__ == '__main__':
 
         if wait_for_server():
             try:
-                print('[server] Server is reachable; opening embedded window')
+                logger.info('[server] Server is reachable; opening embedded window')
                 webview.create_window('Gestion Voyages Scolaires', 'http://127.0.0.1:5001', width=1200, height=800)
                 webview.start()
             except Exception as e:
-                print('[webview] Unable to create embedded window:', e)
+                logger.exception('[webview] Unable to create embedded window:')
                 print('[webview] Falling back to system browser')
                 webbrowser.open_new('http://127.0.0.1:5001/')
                 t.join()
         else:
-            print('[server] Server did not become reachable in time; falling back to system browser')
+            logger.error('[server] Server did not become reachable in time; falling back to system browser')
             # Try to fetch logs or at least notify
             webbrowser.open_new('http://127.0.0.1:5001/')
             t.join()
