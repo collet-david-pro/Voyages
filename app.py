@@ -14,7 +14,13 @@ try:
     from PIL import Image
 except Exception:
     Image = None
-from threading import Timer
+try:
+    import webview
+    WEBVIEW_AVAILABLE = True
+except Exception:
+    webview = None
+    WEBVIEW_AVAILABLE = False
+from threading import Timer, Thread
 import random
 
 app = Flask(__name__)
@@ -2257,6 +2263,21 @@ if __name__ == '__main__':
         pass
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
-    # Lance le navigateur 1 seconde après le démarrage du serveur
-    Timer(1, open_browser).start()
-    app.run(host='127.0.0.1', port=5001, debug=False)
+    # Si pywebview est disponible, démarre Flask en thread et ouvre une fenêtre embarquée.
+    if WEBVIEW_AVAILABLE:
+        def run_server():
+            # Use use_reloader=False to avoid double execution of the server
+            app.run(host='127.0.0.1', port=5001, debug=False, use_reloader=False)
+        t = Thread(target=run_server, daemon=True)
+        t.start()
+        try:
+            webview.create_window('Gestion Voyages Scolaires', 'http://127.0.0.1:5001', width=1200, height=800)
+            webview.start()
+        except Exception:
+            # Fallback : open system browser and keep the server running
+            webbrowser.open_new('http://127.0.0.1:5001/')
+            t.join()
+    else:
+        # Lance le navigateur 1 seconde après le démarrage du serveur
+        Timer(1, open_browser).start()
+        app.run(host='127.0.0.1', port=5001, debug=False)

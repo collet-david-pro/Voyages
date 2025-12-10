@@ -2,5 +2,4 @@ flask
 werkzeug
 fpdf2
 Pillow
-Flask
-fpdf2
+pywebview
