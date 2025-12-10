@@ -2265,16 +2265,43 @@ if __name__ == '__main__':
         os.makedirs(app.config['UPLOAD_FOLDER'])
     # Si pywebview est disponible, démarre Flask en thread et ouvre une fenêtre embarquée.
     if WEBVIEW_AVAILABLE:
+        import socket, time
+
         def run_server():
             # Use use_reloader=False to avoid double execution of the server
-            app.run(host='127.0.0.1', port=5001, debug=False, use_reloader=False)
+            try:
+                print('[server] Starting Flask server (thread) on 127.0.0.1:5001')
+                app.run(host='127.0.0.1', port=5001, debug=False, use_reloader=False)
+            except Exception as e:
+                print('[server] Exception while running Flask server:', e)
+
         t = Thread(target=run_server, daemon=True)
         t.start()
-        try:
-            webview.create_window('Gestion Voyages Scolaires', 'http://127.0.0.1:5001', width=1200, height=800)
-            webview.start()
-        except Exception:
-            # Fallback : open system browser and keep the server running
+
+        # Wait for server to be reachable (simple TCP connect) before opening webview
+        def wait_for_server(host='127.0.0.1', port=5001, timeout=8.0, interval=0.25):
+            deadline = time.time() + timeout
+            while time.time() < deadline:
+                try:
+                    with socket.create_connection((host, port), timeout=1):
+                        return True
+                except Exception:
+                    time.sleep(interval)
+            return False
+
+        if wait_for_server():
+            try:
+                print('[server] Server is reachable; opening embedded window')
+                webview.create_window('Gestion Voyages Scolaires', 'http://127.0.0.1:5001', width=1200, height=800)
+                webview.start()
+            except Exception as e:
+                print('[webview] Unable to create embedded window:', e)
+                print('[webview] Falling back to system browser')
+                webbrowser.open_new('http://127.0.0.1:5001/')
+                t.join()
+        else:
+            print('[server] Server did not become reachable in time; falling back to system browser')
+            # Try to fetch logs or at least notify
             webbrowser.open_new('http://127.0.0.1:5001/')
             t.join()
     else:
