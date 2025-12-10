@@ -45,6 +45,9 @@ jobs:
         for d in ('templates','uploads','fonts'):
             if os.path.exists(d):
                 data += ['--add-data', f"{d}{os.pathsep}{d}"]
+        # also include schema.sql if present at repo root so the app can initialize DB
+        if os.path.exists('schema.sql'):
+          data += ['--add-data', f"schema.sql{os.pathsep}."]
         args = ['--noconfirm','--clean','--name','GestionVoyages','--onefile','--windowed'] + data + ['app.py']
         print('PyInstaller args:', args)
         P.run(args)

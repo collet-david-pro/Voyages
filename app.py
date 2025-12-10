@@ -361,8 +361,9 @@ def format_currency_filter(value):
 
 # Détermine le chemin de base pour l'application (fonctionne en mode normal et après compilation avec PyInstaller)
 if getattr(sys, 'frozen', False):
-    # Si l'application est "gelée" (compilée en .exe)
-    basedir = os.path.dirname(sys.executable)
+    # Si l'application est "gelée" (compilée en .exe).
+    # PyInstaller extrait data files into sys._MEIPASS; prefer that if available.
+    basedir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
 else:
     # En mode développement normal
     basedir = os.path.dirname(os.path.abspath(__file__))
@@ -394,8 +395,24 @@ def init_db():
     """Initialise la base de données avec le schéma."""
     with app.app_context():
         db = get_db()
-        with app.open_resource('schema.sql', mode='r') as f:
-            db.cursor().executescript(f.read())
+        # prefer Flask's open_resource (searches in app.root_path), but fall back to basedir
+        schema_read = False
+        try:
+            with app.open_resource('schema.sql', mode='r') as f:
+                db.cursor().executescript(f.read())
+            schema_read = True
+        except FileNotFoundError:
+            # Try to open schema.sql from the basedir (useful for frozen PyInstaller builds)
+            alt_path = os.path.join(basedir, 'schema.sql')
+            try:
+                with open(alt_path, 'r', encoding='utf8') as f:
+                    db.cursor().executescript(f.read())
+                schema_read = True
+            except FileNotFoundError:
+                schema_read = False
+
+        if not schema_read:
+            raise FileNotFoundError(f"schema.sql not found in app.open_resource or at {alt_path}")
         db.commit()
 
 # -------------------------------------------
